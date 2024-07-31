@@ -42,70 +42,82 @@ void _parse_whitespace(const char text[], size_t* read_pos) {
         c = text[++(*read_pos)];
     }
 }
-void _parse_var(const char text[], size_t* read_pos, num_t term[], size_t* write_pos) {
+char _parse_var(const char text[], size_t* read_pos, num_t term[], size_t* write_pos) {
     char c = text[*read_pos];
     num_t acc = 0;
     while ('0' <= c && c <= '9') {
         acc = acc * 10 + c - '0';
         c = text[++(*read_pos)];
     }
+    if (acc <= 1) return 'F';
+    
     term[(*write_pos)++] = acc;
+    _parse_whitespace(text, read_pos);
+    return 'S';
 }
-void _parse_app(const char*, size_t*, num_t*, size_t*);
-void _parse_abs(const char text[], size_t* read_pos, num_t term[], size_t* write_pos) {
+char _parse_app(const char*, size_t*, num_t*, size_t*);
+char _parse_abs(const char text[], size_t* read_pos, num_t term[], size_t* write_pos) {
     while (true) {
         term[(*write_pos)++] = 1;
         _parse_whitespace(text, read_pos);
-        _parse_var(text, read_pos, term, write_pos);
-        
-        _parse_whitespace(text, read_pos);
         char c = text[(*read_pos)];
+        if (!('0' <= c && c <= '9')) return 'F';
+        if (_parse_var(text, read_pos, term, write_pos) == 'F') return 'F';
+        c = text[(*read_pos)];
         if (c == '.') {
             ++(*read_pos);
-            _parse_app(text, read_pos, term, write_pos);
-            break;
+            if (_parse_app(text, read_pos, term, write_pos) == 'F') return 'F';
+            return 'S';
         }
+        if (!('0' <= c && c <= '9')) return 'F';
     }
 }
-void _parse_app(const char text[], size_t* read_pos, num_t term[], size_t* write_pos) {
+char _parse_app(const char text[], size_t* read_pos, num_t term[], size_t* write_pos) {
     size_t app_start = *write_pos;
     bool first = true;
+    bool read = false;
     while (true) {
-        _parse_whitespace(text, read_pos);
-        char c = text[*read_pos];
-        if (c == ')' || c == '\0') {
-            break;
-        }
-        if (!first) {
+        if (!first && read) {
             for (size_t pos = *write_pos; pos > app_start; --pos) {
                 term[pos] = term[pos-1];
             }
             term[app_start] = 0;
             ++(*write_pos);
         }
-        first = false;
-        if ('0' <= c && c <= '9') {
-            _parse_var(text, read_pos, term, write_pos);
-            _parse_whitespace(text, read_pos);
+        if (read) {
+            first = false;
+        }
+        _parse_whitespace(text, read_pos);
+        char c = text[*read_pos];
+        if (c == ')' || c == '\0') {
+            return 'S';
+        }
+        else if ('0' <= c && c <= '9') {
+            read = true;
+            if (_parse_var(text, read_pos, term, write_pos) == 'F') return 'F';
         }
         else if (c == '(') {
+            read = true;
             ++(*read_pos);
-            _parse_app(text, read_pos, term, write_pos);
+            if (_parse_app(text, read_pos, term, write_pos) == 'F') return 'F';
             ++(*read_pos);
         }
         else if (c == '\\') {
+            read = true;
             ++(*read_pos);
-            _parse_abs(text, read_pos, term, write_pos);
+            if (_parse_abs(text, read_pos, term, write_pos) == 'F') return 'F';
         }
         else {
+            read = false;
             ++(*read_pos);
+            printf("UNKNOWN: %c\n", c);
         }
     }
 }
 size_t lambda_parse(const char text[], num_t term[]) {
     size_t read = 0;
     size_t write = 0;
-    _parse_app(text, &read, term, &write);
+    if (_parse_app(text, &read, term, &write) == 'F') return 0;
     return write;
 }
 
