@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 typedef uint_fast32_t num_t;
 
@@ -50,30 +51,6 @@ void arr_print(const num_t term[], size_t size) {
         printf(", %zu", term[i]);
     }
     printf("]\n");
-}
-size_t _lambda_print(const num_t term[], size_t index) {
-    if (term[index] == 0) {
-        if (term[index+1] == 1) printf("(");
-        size_t second_index = _lambda_print(term, index+1);
-        if (term[index+1] == 1) printf(")");
-        printf(" ");
-        if (term[second_index] <= 1) printf("(");
-        size_t third_index = _lambda_print(term, second_index);
-        if (term[second_index] <= 1) printf(")");
-        return third_index;
-    }
-    if (term[index] == 1) {
-        printf("λ");
-        _lambda_print(term, index+1);
-        printf(".");
-        return _lambda_print(term, index+2);
-    }
-    printf("%zu", term[index]);
-    return index+1;
-}
-void lambda_print(const num_t term[]) {
-    _lambda_print(term, 0);
-    printf("\n");
 }
 
 #endif //_ARRAYS_H
