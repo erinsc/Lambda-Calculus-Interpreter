@@ -29,6 +29,10 @@ char alpha_reduce(num_t term[], size_t size, size_t max_val) {
     
     // Perform alpha reduction
     for (size_t pos = 0; pos < size; ++pos) {
+        if (term[pos] == 2) {
+            ++pos;
+            continue;
+        }
         size_t found = bst_find(repl_chart, abs_count_in_side, term[pos]);
         if (found != SIZE_MAX)
             term[pos] = max_val + found;

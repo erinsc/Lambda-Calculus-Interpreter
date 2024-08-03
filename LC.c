@@ -5,16 +5,29 @@
 #include "beta.h"
 
 int main() {
-    
-    // Multiplication                                        Three (first arg)        Four (second arg)
-    //"(\7 8.7 ((\5 6.5 (\2 3 4.3 (2 3 4)) 6) 8) (\9 10.10)) (\11 12.11 (11 (11 12))) (\13 14.13 (13 14))";
     size_t mem_size = 1000; // Max term size
-    char input[1024];
+    char input[] = "(\\a b.a INC b) (\\z w. z(z(z(z w))))";
     
     num_t* from = malloc(mem_size * sizeof(num_t));
     num_t* to = malloc(mem_size * sizeof(num_t));
-    num_t* swp = from;
+    num_t* swp;
     
+    size_t term_size = lambda_parse(input, from);
+    
+    char ret = 'S';
+    while (ret == 'S') {
+        lambda_print(from);
+        ret = beta_reduce(from, &term_size, to, mem_size);
+        swp = from;
+        from = to;
+        to = swp;
+    }
+    alpha_reduce(to, term_size, 3);
+    lambda_print(to);
+    return 0;
+}
+    
+    /*
     while (1) {
         printf("> ");
         if (scanf(" %1023[^\n]", input) == EOF) break;
@@ -32,7 +45,4 @@ int main() {
             
             lambda_print(to);
         }
-    }
-    
-    return 0;
-}
+    }*/

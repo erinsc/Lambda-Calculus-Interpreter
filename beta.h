@@ -27,8 +27,9 @@ char beta_reduce(const num_t from[], size_t* term_size, num_t to[], size_t mem_s
     size_t var_count_in_body = 0;
     
     while (depth > 0 && arg_pos < *term_size) {
+        if (from[arg_pos] == 2) depth += 1;
         if (from[arg_pos] <= 1) depth += 2;
-        else if (from[arg_pos] == var) ++var_count_in_body;
+        if (from[arg_pos] == var) ++var_count_in_body;
         --depth;
         ++arg_pos;
     }
@@ -37,6 +38,7 @@ char beta_reduce(const num_t from[], size_t* term_size, num_t to[], size_t mem_s
     size_t abs_count_in_arg = 0;
     depth = 1;
     while (depth > 0 && end_pos < *term_size) {
+        if (from[end_pos] == 2) depth += 1;
         if (from[end_pos] <= 1) depth += 2;
         if (from[end_pos] == 1) ++abs_count_in_arg;
         --depth;
@@ -44,7 +46,7 @@ char beta_reduce(const num_t from[], size_t* term_size, num_t to[], size_t mem_s
     }
     size_t arg_size = end_pos - arg_pos;
     size_t new_size = *term_size + (arg_size - 1) * (var_count_in_body - 1) - 4;
-    
+
     // If expanded term wont fit in memory return
     if (new_size > mem_size)
         return 'M';
@@ -62,18 +64,23 @@ char beta_reduce(const num_t from[], size_t* term_size, num_t to[], size_t mem_s
     num_t max_val;
     size_t read_pos = app_pos + 3;
     for (; read_pos < arg_pos; ++read_pos) {
+        if (from[read_pos] == 2) {
+            to[write_pos++] = from[read_pos++];
+            to[write_pos++] = from[read_pos];
+            continue;
+        }
         if (from[read_pos] != var) {
             to[write_pos++] = from[read_pos];
             continue;
         }
         for (size_t pos = arg_pos; pos < end_pos; ++pos) {
+
             to[write_pos++] = from[pos];
         }
         // If second variable found, rename bound variables
         if (!first) {
             max_val = get_max(from, *term_size) + 1;
             alpha_pos = write_pos - arg_size;
-            
             // rename using alpha reduction. if fails for memory, fail
             char repl = alpha_reduce(to+alpha_pos, arg_size, max_val);
             if (repl == 'M')
@@ -90,6 +97,11 @@ char beta_reduce(const num_t from[], size_t* term_size, num_t to[], size_t mem_s
     if (var_count_in_body > 1) {
         // Finish beta reduction
         for (; read_pos < arg_pos; ++read_pos) {
+            if (from[read_pos] == 2) {
+                to[write_pos++] = from[read_pos++];
+                to[write_pos++] = from[read_pos];
+                continue;
+            }
             if (from[read_pos] != var) {
                 to[write_pos++] = from[read_pos];
                 continue;
