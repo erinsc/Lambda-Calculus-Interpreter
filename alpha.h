@@ -6,10 +6,10 @@
 #include "arrays.h"
 #include "types.h"
 
-char alpha_reduce(array_t term, size_t max_val) {
+char alpha_reduce(array_t term, size_t term_size, size_t max_val) {
     // Count abs occurences
     size_t abs_count_in_side = 0;
-    for (size_t pos = 0; pos < term.size; ++pos) {
+    for (size_t pos = 0; pos < term_size; ++pos) {
         if (term.values[pos] == 1)
             ++abs_count_in_side;
     }
@@ -21,14 +21,14 @@ char alpha_reduce(array_t term, size_t max_val) {
         
     // Generate chart
     size_t repl_pos = 0;
-    for (size_t pos = 0; pos < term.size; ++pos) {
+    for (size_t pos = 0; pos < term_size; ++pos) {
         if (term.values[pos] == 1)
             repl_chart.values[repl_pos++] = term.values[++pos];
     }
     insertion_sort(repl_chart);
     
     // Perform alpha reduction
-    for (size_t pos = 0; pos < term.size; ++pos) {
+    for (size_t pos = 0; pos < term_size; ++pos) {
         if (term.values[pos] == 2) {
             ++pos;
             continue;

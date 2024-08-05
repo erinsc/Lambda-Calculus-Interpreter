@@ -7,7 +7,7 @@
 int main() {
     size_t mem_size = 1024; // Max term size
     //size_t exp_size = 16; 
-    char input[] = "(\\a b.a INC b) (\\z w. z(z(z(z w))))";
+    char input[] = "(\\a b.a) (\\x.x) u";
     
     num_t* from_n = malloc(mem_size * sizeof(num_t));
     num_t* to_n = malloc(mem_size * sizeof(num_t));
@@ -29,8 +29,9 @@ int main() {
         from.values = to.values;
         to.values = swp;
     }
-    alpha_reduce(to, 3);
+    alpha_reduce(to, term_size, 3);
     lambda_print(to);
+    arr_print(to);
     return 0;
 }
     

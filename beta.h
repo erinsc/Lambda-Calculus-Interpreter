@@ -85,7 +85,7 @@ char beta_reduce(const array_t from, array_t to, size_t* term_size) {
             alpha_pos = write_pos - arg_size;
             // rename using alpha reduction. if fails for memory, fail
             array_t argument = {arg_size, to.values + alpha_pos};
-            char repl = alpha_reduce(argument, max_val);
+            char repl = alpha_reduce(argument, *term_size, max_val);
             if (repl == 'M')
                 return 'M';
             // Check if there are enough free variable names
