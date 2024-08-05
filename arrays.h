@@ -4,51 +4,81 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include "types.h"
 
-typedef uint_fast32_t num_t;
-
-num_t get_max(const num_t arr[], size_t size) {
+num_t get_max(const array_t array) {
     size_t max_val = 0;
-    for (size_t pos = 0; pos < size; ++pos) {
-        max_val = arr[pos] > max_val ? arr[pos] : max_val;
+    for (size_t pos = 0; pos < array.size; ++pos) {
+        max_val = array.values[pos] > max_val ? array.values[pos] : max_val;
     }
     return max_val;
 }
-size_t bst_find(const num_t arr[], size_t size, num_t elem) {
+size_t bst_find(const array_t array, num_t elem) {
     size_t low = 0;
-    size_t high = size;
-    if (arr[0] > elem) return SIZE_MAX;
+    size_t high = array.size;
+    if (array.values[0] > elem) return SIZE_MAX;
     while (low <= high) {
         size_t mid = low + (high - low) / 2;
-        if (arr[mid] < elem)
+        if (array.values[mid] < elem)
             low = mid + 1;
-        else if (arr[mid] > elem)
+        else if (array.values[mid] > elem)
             high = mid - 1;
         else 
             return mid;
     }
     return SIZE_MAX;
 }
-void arr_copy(const num_t from[], num_t to[], size_t size) {
-    for (size_t i = 0; i < size; ++i) {
-        to[i] = from[i];
+size_t bst_find_aa(const map_t map, num_t id) {
+    size_t low = 0;
+    size_t high = map.size;
+    entry_t* entries = map.entries;
+    if (entries[0].id > id) return SIZE_MAX;
+    while (low <= high) {
+        size_t mid = low + (high - low) / 2;
+        if (entries[mid].id < id)
+            low = mid + 1;
+        else if (entries[mid].id > id)
+            high = mid - 1;
+        else 
+            return mid;
     }
+    return SIZE_MAX;
 }
-void insertion_sort(num_t input[], size_t size) {
-    for (size_t i = 1; i < size; ++i) {
-        num_t val = input[i];
+void insertion_sort(array_t array) {
+    num_t* values = array.values;
+    for (size_t i = 1; i < array.size; ++i) {
+        num_t val = values[i];
         size_t j = i;
-        while (input[j-1] > val && j > 0) {
-            input[j] = input[j-1];
+        while (values[j-1] > val && j > 0) {
+            values[j] = values[j-1];
             --j;
         }
-        input[j] = val;
+        values[j] = val;
     }
 }
-void arr_print(const num_t term[], size_t size) {
-    printf("[%zu", term[0]);
-    for (size_t i = 1; i < size; ++i) {
-        printf(", %zu", term[i]);
+void insertion_sort_map(map_t map) {
+    entry_t* entries = map.entries;
+    for (size_t i = 1; i < map.size; ++i) {
+        entry_t val = entries[i];
+        size_t j = i;
+        while (entries[j-1].id > val.id && j > 0) {
+            entries[j] = entries[j-1];
+            --j;
+        }
+        entries[j] = val;
+    }
+}
+void arr_copy(const array_t from, array_t to) {
+    num_t* to_v = to.values;
+    size_t size = from.size > to.size ? to.size : from.size;
+    for (size_t i = 0; i < size; ++i) {
+        to_v[i] = from.values[i];
+    }
+}
+void arr_print(const array_t term) {
+    printf("[%zu", term.values[0]);
+    for (size_t i = 1; i < term.size; ++i) {
+        printf(", %zu", term.values[i]);
     }
     printf("]\n");
 }
