@@ -6,9 +6,8 @@
 #include <stdbool.h>
 #include "arrays.h"
 #include "alpha.h"
-#include "types.h"
 
-char beta_reduce(const array_t from, array_t to, size_t* term_size) {
+response beta_reduce(const array_t from, array_t to, size_t* term_size) {
     num_t* from_v = from.values;
     num_t* to_v = to.values;
     
@@ -20,7 +19,7 @@ char beta_reduce(const array_t from, array_t to, size_t* term_size) {
                 break;
     }
     if (app_pos == *term_size)
-        return 'D';
+        return Normal;
     
     // Parse body and count var occurences
     size_t arg_pos = app_pos+3;
@@ -51,7 +50,7 @@ char beta_reduce(const array_t from, array_t to, size_t* term_size) {
 
     // If expanded term wont fit in memory return
     if (new_size > to.size)
-        return 'M';
+        return MemoryLow;
     
     // Start Beta reduction
     
@@ -85,9 +84,8 @@ char beta_reduce(const array_t from, array_t to, size_t* term_size) {
             alpha_pos = write_pos - arg_size;
             // rename using alpha reduction. if fails for memory, fail
             array_t argument = {arg_size, to.values + alpha_pos};
-            char repl = alpha_reduce(argument, *term_size, max_val);
-            if (repl == 'M')
-                return 'M';
+            if (alpha_reduce(argument, arg_size, max_val) == MemoryUnallocated)
+                return MemoryUnallocated;
             // Check if there are enough free variable names
             //if (max_val - 1 + (var_count_in_body-1) * abs_count_in_arg < max_val)
             //    return 'V';
@@ -122,7 +120,7 @@ char beta_reduce(const array_t from, array_t to, size_t* term_size) {
     }
     *term_size = new_size;
     
-    return 'S';
+    return Reduced;
 }
 
 #endif //_BETA_H

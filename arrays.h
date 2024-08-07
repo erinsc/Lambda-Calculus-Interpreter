@@ -3,8 +3,30 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include <stdbool.h>
-#include "types.h"
+
+typedef enum {
+    Reduced,
+    Normal,
+    MemoryLow,
+    MemoryUnallocated,
+} response;
+
+typedef uint_fast32_t num_t;
+
+typedef struct {
+  size_t size;
+  num_t* values;
+} array_t;
+
+typedef struct {
+    num_t id;
+    array_t array;
+} entry_t;
+
+typedef struct {
+  size_t size;
+  entry_t* entries;
+} map_t;
 
 num_t get_max(const array_t array) {
     size_t max_val = 0;
@@ -28,7 +50,7 @@ size_t bst_find(const array_t array, num_t elem) {
     }
     return SIZE_MAX;
 }
-size_t bst_find_aa(const map_t map, num_t id) {
+size_t bst_find_map(const map_t map, num_t id) {
     size_t low = 0;
     size_t high = map.size;
     entry_t* entries = map.entries;
