@@ -2,8 +2,9 @@
 #define _PARSER_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
-#include "types.h"
+#include "arrays.h"
 
 size_t _lambda_print(const array_t term, size_t index) {
     num_t* values = term.values;
@@ -156,6 +157,12 @@ size_t lambda_parse(const char text[], array_t term) {
     size_t read = 0;
     size_t write = 0;
     if (_parse_app(text, &read, term, &write) == 'F') return 0;
+    return write;
+}
+size_t exp_parse(const char text[], array_t term) {
+    size_t read = 0;
+    size_t write = 0;
+    if (_parse_exp(text, &read, term, &write) == 'F') return 0;
     return write;
 }
 
