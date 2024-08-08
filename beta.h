@@ -62,7 +62,7 @@ response beta_reduce(const array_t from, array_t to, size_t* term_size) {
     // Preform simple beta reduction
     bool first = true;
     size_t alpha_pos;
-    num_t max_val;
+    num_t max_val = 2;
     size_t read_pos = app_pos + 3;
     for (; read_pos < arg_pos; ++read_pos) {
         if (from_v[read_pos] == 2) {
@@ -80,7 +80,14 @@ response beta_reduce(const array_t from, array_t to, size_t* term_size) {
         }
         // If second variable found, rename bound variables
         if (!first) {
-            max_val = get_max(from) + 1;
+            for (size_t pos = 0; pos < *term_size; ++pos) {
+                if (from.values[pos] == 2) {
+                    ++pos;
+                    continue;
+                }
+                max_val = from.values[pos] > max_val ? from.values[pos] : max_val;
+            }
+            max_val += 1;
             alpha_pos = write_pos - arg_size;
             // rename using alpha reduction. if fails for memory, fail
             array_t argument = {arg_size, to.values + alpha_pos};
@@ -122,5 +129,4 @@ response beta_reduce(const array_t from, array_t to, size_t* term_size) {
     
     return Reduced;
 }
-
 #endif //_BETA_H

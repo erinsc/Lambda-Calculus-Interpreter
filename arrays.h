@@ -83,7 +83,7 @@ void insertion_sort_map(map_t map) {
     for (size_t i = 1; i < map.size; ++i) {
         entry_t val = entries[i];
         size_t j = i;
-        while (entries[j-1].id > val.id && j > 0) {
+        while (j > 0 && entries[j-1].id > val.id) {
             entries[j] = entries[j-1];
             --j;
         }

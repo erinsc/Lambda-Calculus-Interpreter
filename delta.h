@@ -20,6 +20,9 @@ response delta_reduce(const array_t from, array_t to, const map_t expressions, s
         return Normal;
     
     size_t map_pos = bst_find_map(expressions, from_v[exp_pos+1]);
+    if (map_pos == SIZE_MAX)
+        return Normal;
+    
     array_t exp = expressions.entries[map_pos].array;
     
     // If expanded term wont fit in memory return
@@ -37,7 +40,7 @@ response delta_reduce(const array_t from, array_t to, const map_t expressions, s
         to_v[write_pos++] = exp.values[pos];
     }
     // Rename variables to avoid conflict
-    num_t max_val = 0;
+    num_t max_val = 2;
     for (size_t pos = 0; pos < *term_size; ++pos) {
         if (from.values[pos] == 2) {
             ++pos;
