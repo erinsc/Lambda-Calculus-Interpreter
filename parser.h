@@ -19,7 +19,7 @@ size_t _lambda_print(const array_t term, size_t index) {
         return third_index;
     }
     if (values[index] == 1) {
-        printf("λ");
+        printf("\\");
         _lambda_print(term, index+1);
         while (values[index+2] == 1) {
             printf(" ");
@@ -82,7 +82,7 @@ char _parse_var(const char text[], size_t* read_pos, array_t term, size_t* write
     num_t acc = 0;
     char n = text[(*read_pos)];
     while ('0' <= n && n <= '9') {
-        acc = acc * 10 + c - '0';
+        acc = acc * 10 + n - '0';
         n = text[++(*read_pos)];
     }
     acc = acc * 26 + c - 'a';
@@ -124,7 +124,7 @@ char _parse_app(const char text[], size_t* read_pos, array_t term, size_t* write
         }
         _parse_whitespace(text, read_pos);
         char c = text[*read_pos];
-        if (c == ')' || c == '\0') {
+        if (c == ')' || c == '\0' || c == '\n') {
             return 'S';
         }
         else if ('a' <= c && c <= 'z') {
@@ -149,7 +149,7 @@ char _parse_app(const char text[], size_t* read_pos, array_t term, size_t* write
         else {
             read = false;
             ++(*read_pos);
-            printf("UNKNOWN: %c\n", c);
+            printf("UNKNOWN: -%c-\n", c);
         }
     }
 }
@@ -159,11 +159,15 @@ size_t lambda_parse(const char text[], array_t term) {
     if (_parse_app(text, &read, term, &write) == 'F') return 0;
     return write;
 }
-size_t exp_parse(const char text[], array_t term) {
+num_t exp_parse(const char text[]) {
     size_t read = 0;
     size_t write = 0;
+    num_t term_n[] = {0,0};
+    array_t term = {2, term_n};
+    _parse_whitespace(text, &read);
     if (_parse_exp(text, &read, term, &write) == 'F') return 0;
-    return write;
+    if (term.values[0] != 2) return 0;
+    return term.values[1];
 }
 
 #endif //_PARSER_H
