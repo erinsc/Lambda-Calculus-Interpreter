@@ -1,10 +1,9 @@
 CC     :=  gcc
 CFLAGS :=  -std=c99 -W -Wall -Wextra -Wpedantic
 
-SRCS := LC.c
+SRCS := term.c parser.c reduction.c LC.c
 OBJS := $(addprefix obj/,$(SRCS:.c=.o))
 SRCS := $(addprefix src/,$(SRCS))
-
 
 all: LC
 

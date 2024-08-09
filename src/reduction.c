@@ -1,13 +1,42 @@
-#ifndef _BETA_H
-#define _BETA_H
-
-#include <stdint.h>
-#include <stdlib.h>
 #include <stdbool.h>
-#include "term.h"
-#include "alpha.h"
-#include "parser.h"
 
+#include "term.h"
+#include "stdlib.h"
+
+response alpha_reduce(term_t* term, size_t max_val) {
+    // Count abs occurences
+    size_t abs_count_in_side = 0;
+    for (size_t pos = 0; pos < term->size; ++pos) {
+        if (term->values[pos] == 1)
+            ++abs_count_in_side;
+    }
+    // Allocate replacing chart
+    num_t* repl_values = (num_t*)malloc(abs_count_in_side * sizeof(num_t));
+    if (repl_values == NULL)
+        return MemoryUnallocated;
+    term_t repl_chart = {abs_count_in_side, abs_count_in_side, SIZE_MAX, repl_values};
+    
+    // Generate chart
+    size_t repl_pos = 0;
+    for (size_t pos = 0; pos < term->size; ++pos) {
+        if (term->values[pos] == 1)
+            repl_chart.values[repl_pos++] = term->values[++pos];
+    }
+    insertion_sort(&repl_chart);
+
+    // Perform alpha reduction
+    for (size_t pos = 0; pos < term->size; ++pos) {
+        if (term->values[pos] == 2) {
+            ++pos;
+            continue;
+        }
+        size_t found = bst_find(&repl_chart, term->values[pos]);
+        if (found != SIZE_MAX)
+            term->values[pos] = max_val + found;
+    }
+    free(repl_values);
+    return Reduced;
+}
 response beta_reduce(const term_t* from, term_t* to) {
     num_t* from_v = from->values;
     num_t* to_v = to->values;
@@ -122,4 +151,54 @@ response beta_reduce(const term_t* from, term_t* to) {
     
     return Reduced;
 }
-#endif //_BETA_H
+response delta_reduce(const term_t* from, term_t* to, const map_t* map) {
+    num_t* from_v = from->values;
+    num_t* to_v = to->values;
+    
+    // Find Applicable Expression
+    size_t exp_pos = 0;
+    for (; exp_pos < from->size; ++exp_pos) {
+        if (from_v[exp_pos] == 2)
+            break;
+    }
+    if (exp_pos == from->size)
+        return Normal;
+    
+    size_t map_pos = bst_find_map(map, from_v[exp_pos+1]);
+    if (map_pos == SIZE_MAX)
+        return Normal;
+    
+    term_t exp = map->entries[map_pos];
+    
+    // If expanded term wont fit in memory return
+    size_t new_size = from->size + exp.size - 2;
+    if (new_size > to->capacity)
+        return MemoryLow;
+    
+    // Copy prefix of array
+    size_t write_pos = 0;
+    for (size_t pos = 0; pos < exp_pos; ++pos) {
+        to_v[write_pos++] = from_v[pos];
+    }
+    // Copy expression
+    for (size_t pos = 0; pos < exp.size; ++pos) {
+        to_v[write_pos++] = exp.values[pos];
+    }
+    // Rename variables to avoid conflict
+    num_t max_val = get_max(from) + 1;
+    
+    term_t argument = {exp.size, exp.size, SIZE_MAX, to->values + exp_pos};
+    
+    if (alpha_reduce(&argument, max_val) == MemoryUnallocated)
+        return MemoryUnallocated;
+    
+    //arr_print(argument);
+    
+    // Finish copying rest of term
+    for (size_t pos = exp_pos+2; pos < from->size; ++pos) {
+        to_v[write_pos++] = from_v[pos];
+    }
+    to->size = new_size;
+    
+    return Reduced;
+}

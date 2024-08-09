@@ -1,22 +1,16 @@
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "term.h"
 #include "parser.h"
-#include "delta.h"
-#include "alpha.h"
-#include "beta.h"
-
-typedef enum : char {
-    Beta,
-    Delta,
-    BetaDelta,
-} Startegy;
+#include "reduction.h"
 
 struct ProgramState { // 128 bytes
     map_t map;
     term_t term;
     term_t acc;
 
-    Startegy strategy;
+    Strategy strategy;
     bool print;
 };
 
@@ -124,7 +118,7 @@ void text_parse(const char input[], struct ProgramState* state) {
     if (state->term.size == 0) {
         return;
     }
-    switch(normalize(&state->term, &state->acc, &state->map, true)) {
+    switch(normalize(&state->term, &state->acc, &state->map, false)) {
         case MemoryUnallocated:
             printf("! Memalloc error\n");
             break;
@@ -164,6 +158,9 @@ void text_parse(const char input[], struct ProgramState* state) {
 
 int main(int argc, char *argv[]) {
     struct ProgramState state;
+    state.print = false;
+    
+    
     term_t* map_n = malloc(MEM_MIN * sizeof(term_t));
     state.map = (map_t){MEM_MIN, 0, map_n};
     
