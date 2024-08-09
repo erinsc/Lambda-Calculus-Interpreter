@@ -1,77 +1,70 @@
 #include <stdio.h>
-#include "arrays.h"
+#include "term.h"
 #include "parser.h"
 #include "delta.h"
 #include "alpha.h"
 #include "beta.h"
 
-typedef enum {
+typedef enum : char {
     Beta,
     Delta,
     BetaDelta,
-} startegy;
+} Startegy;
 
-struct ProgramState {
+struct ProgramState { // 128 bytes
     map_t map;
-    size_t map_size;
-    array_t term;
-    size_t term_size;
+    term_t term;
+    term_t acc;
+
+    Startegy strategy;
+    bool print;
 };
 
 // Perform successive beta and delta reductions until term is normalized
-response normalize(array_t* term, map_t expressions, size_t* term_size, bool print) {
-    // Allocate accumulator buffer for inbetween results
-    num_t* acc_n = malloc(term->size * sizeof(num_t));
-    if (acc_n == NULL)
-        return MemoryUnallocated;
-    array_t acc = {term->size, acc_n};
-    array_t swp;
+response normalize(term_t* term, term_t* acc, map_t* expressions, bool print) {
+    term_t swp;
     
     while (true) {
         if (print)
-            lambda_print(*term);
+            lambda_print(term);
         // Perform beta-reduction
-        switch (beta_reduce(*term, acc, term_size)) {
+        switch (beta_reduce(term, acc)) {
             case Reduced: // If reduction occured, swap terms and repeat
                 swp = *term;
-                *term = acc;
-                acc = swp;
+                *term = *acc;
+                *acc = swp;
                 continue;
             case MemoryLow: {
-                num_t* new_acc_n = realloc(acc.values, acc.size * 2 * sizeof(num_t));
+                num_t* new_acc_n = realloc(acc->values, acc->capacity * 2 * sizeof(num_t));
                 if (new_acc_n == NULL) {
-                    free(acc.values);
                     return MemoryUnallocated;
                 }
-                acc.values = new_acc_n;
-                acc.size *= 2;
+                acc->values = new_acc_n;
+                acc->capacity *= 2;
                 continue;
             }
             case MemoryUnallocated:
-                free(acc.values);
                 return MemoryUnallocated;
             case Normal: // If term beta-normalized...
                 break;
         }
         // Perform delta-reduction
-        switch (delta_reduce(*term, acc, expressions, term_size)) {
+        switch (delta_reduce(term, acc, expressions)) {
             case Reduced: // If reduction occured, go back to loop start
                 swp = *term;
-                *term = acc;
-                acc = swp;
+                *term = *acc;
+                *acc = swp;
                 continue;
             case MemoryLow: {
-                num_t* new_acc_n = realloc(acc.values, acc.size * 2 * sizeof(num_t));
+                num_t* new_acc_n = realloc(acc->values, acc->capacity * 2 * sizeof(num_t));
                 if (new_acc_n == NULL) {
-                    free(acc.values);
                     return MemoryUnallocated;
                 }
-                acc.values = new_acc_n;
-                acc.size *= 2;
+                acc->values = new_acc_n;
+                acc->capacity *= 2;
                 continue;
             }
             case MemoryUnallocated:
-                free(acc.values);
                 return MemoryUnallocated;
             case Normal: // If term is both beta- and delta-normalized...
                 break;
@@ -79,34 +72,33 @@ response normalize(array_t* term, map_t expressions, size_t* term_size, bool pri
         break;
     }
     // Rename variables to minimize space
-    alpha_reduce(*term, *term_size, 3);
+    alpha_reduce(term, 3);
     return Normal;
 }
-response add_expression(map_t* map, size_t* map_size, const array_t term, size_t term_size, num_t id) {
+response add_expression(map_t* map, const term_t* term, num_t id) {
     // Check if id isn't already defined
-    size_t map_pos = bst_find_map(*map, id);
+    size_t map_pos = bst_find_map(map, id);
     if (map_pos != SIZE_MAX)
         return Normal;
     
     // If needed, allocate more space for expression map
-    if (*map_size >= map->size) {
-        entry_t* new_map_n = realloc(map->entries, *map_size * 2 * sizeof(entry_t));
+    if (map->size == map->capacity) {
+        term_t* new_map_n = (term_t*)realloc(map->entries, map->capacity * 2 * sizeof(term_t));
         if (new_map_n == NULL) {
             return MemoryUnallocated;
         }
-        map->size *= 2;
+        map->capacity *= 2;
         map->entries = new_map_n;
     }
-    num_t* exp_n = malloc(term_size * sizeof(entry_t));
+    num_t* exp_n = malloc(term->size * sizeof(term_t));
     
-    for (size_t i = 0; i < term_size; ++i) {
-        exp_n[i] = term.values[i];
+    for (size_t i = 0; i < term->size; ++i) {
+        exp_n[i] = term->values[i];
     }
-    array_t exp = {term_size, exp_n};
-    entry_t entry = {id, exp};
-    map->entries[(*map_size)++] = entry;
+    term_t exp = {term->size, term->size, id, exp_n};
+    map->entries[(map->size)++] = exp;
     
-    insertion_sort_map(*map);
+    insertion_sort_map(map);
     
     return Reduced;
 }
@@ -117,27 +109,27 @@ void text_parse(const char input[], struct ProgramState* state) {
     }
     if (input[0] == '=') {
         num_t id = exp_parse(input + 1);
-        switch(add_expression(&state->map, &state->map_size, state->term, state->term_size, id)) {
+        switch(add_expression(&state->map, &state->term, id)) {
             case Normal:
                 printf("! Expression already defined\n");
                 break;
             case MemoryUnallocated:
                 printf("! Memalloc error\n");
             default:
+                break;
         }
         return;
     }
-    state->term_size = lambda_parse(input, state->term);
-    if (state->term_size == 0) {
+    lambda_parse(input, &state->term);
+    if (state->term.size == 0) {
         return;
     }
-    
-    switch(normalize(&state->term, state->map, &state->term_size, true)) {
+    switch(normalize(&state->term, &state->acc, &state->map, true)) {
         case MemoryUnallocated:
             printf("! Memalloc error\n");
             break;
         case Normal:
-            lambda_print(state->term);
+            lambda_print(&state->term);
             break;
         default:
             printf("Unexpected instruction\n");
@@ -168,13 +160,18 @@ void text_parse(const char input[], struct ProgramState* state) {
 
 // (\a.a (\d e.e (d (\l m.l) (\f.d (\n o.o) (\g h i.h (g h i)) f) (\j k.k)) (\p q.p (d (\r s.s) p q))) (\t.t (\u v.u v) (\w x.w x)) (\b c.b)) (\a1 b1.a1(a1(a1(a1 b1))))
 
+#define MEM_MIN 16
+
 int main() {
-    struct ProgramState state = {.map_size=0, .term_size=0};
-    entry_t* map_n = malloc(16 * sizeof(entry_t));
-    state.map = (map_t){16, map_n};
+    struct ProgramState state;
+    term_t* map_n = malloc(MEM_MIN * sizeof(term_t));
+    state.map = (map_t){MEM_MIN, 0, map_n};
     
-    num_t* term_n = malloc(16 * sizeof(num_t));
-    state.term = (array_t){16, term_n};
+    num_t* term_n = calloc(MEM_MIN, sizeof(num_t));
+    state.term = (term_t){MEM_MIN, 0, SIZE_MAX, term_n};
+    
+    num_t* acc_n = calloc(MEM_MIN, sizeof(num_t));
+    state.acc = (term_t){MEM_MIN, 0, SIZE_MAX, acc_n};
     
     char input[1024];
     
@@ -186,4 +183,10 @@ int main() {
         }
         text_parse(input, &state);
     }
+    //TODO: free expressions from map
+    free(map_n);
+    free(term_n);
+    free(acc_n);
+    
+    return 0;
 }

@@ -4,10 +4,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include "arrays.h"
+#include "term.h"
 
-size_t _lambda_print(const array_t term, size_t index) {
-    num_t* values = term.values;
+size_t _lambda_print(const term_t* term, size_t index) {
+    num_t* values = term->values;
     if (values[index] == 0) {
         if (values[index+1] == 1) printf("(");
         size_t second_index = _lambda_print(term, index+1);
@@ -43,7 +43,11 @@ size_t _lambda_print(const array_t term, size_t index) {
         printf("%zu", n / 26);
     return index+1;
 }
-void lambda_print(const array_t term) {
+void lambda_print(const term_t* term) {
+    if (term->size == 0) {
+        printf("\" \"\n");
+        return;
+    }
     _lambda_print(term, 0);
     printf("\n");
 }
@@ -53,8 +57,8 @@ void _parse_whitespace(const char text[], size_t* read_pos) {
         c = text[++(*read_pos)];
     }
 }
-char _parse_exp(const char text[], size_t* read_pos, array_t term, size_t* write_pos) {
-    num_t* term_v = term.values;
+char _parse_exp(const char text[], size_t* read_pos, term_t* term, size_t* write_pos) {
+    num_t* term_v = term->values;
     term_v[(*write_pos)++] = 2;
     size_t counter = 0;
     
@@ -76,8 +80,8 @@ char _parse_exp(const char text[], size_t* read_pos, array_t term, size_t* write
     _parse_whitespace(text, read_pos);
     return 'S';
 }
-char _parse_var(const char text[], size_t* read_pos, array_t term, size_t* write_pos) {
-    num_t* term_v = term.values;
+char _parse_var(const char text[], size_t* read_pos, term_t* term, size_t* write_pos) {
+    num_t* term_v = term->values;
     char c = text[(*read_pos)++];
     num_t acc = 0;
     char n = text[(*read_pos)];
@@ -90,10 +94,10 @@ char _parse_var(const char text[], size_t* read_pos, array_t term, size_t* write
     _parse_whitespace(text, read_pos);
     return 'S';
 }
-char _parse_app(const char*, size_t*, array_t, size_t*);
-char _parse_abs(const char text[], size_t* read_pos, array_t term, size_t* write_pos) {
+char _parse_app(const char*, size_t*, term_t*, size_t*);
+char _parse_abs(const char text[], size_t* read_pos, term_t* term, size_t* write_pos) {
     while (true) {
-        term.values[(*write_pos)++] = 1;
+        term->values[(*write_pos)++] = 1;
         _parse_whitespace(text, read_pos);
         char c = text[(*read_pos)];
         if (!('a' <= c && c <= 'z')) return 'F';
@@ -107,16 +111,16 @@ char _parse_abs(const char text[], size_t* read_pos, array_t term, size_t* write
         if (!('a' <= c && c <= 'z')) return 'F';
     }
 }
-char _parse_app(const char text[], size_t* read_pos, array_t term, size_t* write_pos) {
+char _parse_app(const char text[], size_t* read_pos, term_t* term, size_t* write_pos) {
     size_t app_start = *write_pos;
     bool first = true;
     bool read = false;
     while (true) {
         if (!first && read) {
             for (size_t pos = *write_pos; pos > app_start; --pos) {
-                term.values[pos] = term.values[pos-1];
+                term->values[pos] = term->values[pos-1];
             }
-            term.values[app_start] = 0;
+            term->values[app_start] = 0;
             ++(*write_pos);
         }
         if (read) {
@@ -153,21 +157,32 @@ char _parse_app(const char text[], size_t* read_pos, array_t term, size_t* write
         }
     }
 }
-size_t lambda_parse(const char text[], array_t term) {
+void lambda_parse(const char text[], term_t* term) {
     size_t read = 0;
     size_t write = 0;
-    if (_parse_app(text, &read, term, &write) == 'F') return 0;
-    return write;
+    if (_parse_app(text, &read, term, &write) == 'F') {
+        term->size = 0;
+        return;
+    }
+    term->size = write;
 }
 num_t exp_parse(const char text[]) {
     size_t read = 0;
     size_t write = 0;
-    num_t term_n[] = {0,0};
-    array_t term = {2, term_n};
+    num_t term_n[] = {0, 0};
+    term_t term = {2, 0, SIZE_MAX, term_n};
     _parse_whitespace(text, &read);
-    if (_parse_exp(text, &read, term, &write) == 'F') return 0;
+    if (_parse_exp(text, &read, &term, &write) == 'F') return 0;
     if (term.values[0] != 2) return 0;
     return term.values[1];
 }
+
+void lambda_log(const term_t* term) {
+    printf("-- Capacity: %zu\n", term->capacity);
+    printf("-- Size:     %zu\n", term->size);
+    printf("-- Lambda:   "); lambda_print(term);
+    printf("-- Array:    "); arr_print(term);
+}
+
 
 #endif //_PARSER_H

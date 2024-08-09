@@ -4,21 +4,22 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include "arrays.h"
+#include "term.h"
 #include "alpha.h"
+#include "parser.h"
 
-response beta_reduce(const array_t from, array_t to, size_t* term_size) {
-    num_t* from_v = from.values;
-    num_t* to_v = to.values;
+response beta_reduce(const term_t* from, term_t* to) {
+    num_t* from_v = from->values;
+    num_t* to_v = to->values;
     
     // Find Applicable Abstraction
     size_t app_pos = 0;
-    for (; app_pos < *term_size; ++app_pos) {
+    for (; app_pos < from->size; ++app_pos) {
         if (from_v[app_pos] == 0)
             if (from_v[app_pos+1] == 1)
                 break;
     }
-    if (app_pos == *term_size)
+    if (app_pos == from->size)
         return Normal;
     
     // Parse body and count var occurences
@@ -27,7 +28,7 @@ response beta_reduce(const array_t from, array_t to, size_t* term_size) {
     num_t var = from_v[app_pos+2];
     size_t var_count_in_body = 0;
     
-    while (depth > 0 && arg_pos < *term_size) {
+    while (depth > 0 && arg_pos < from->size) {
         if (from_v[arg_pos] == 2) depth += 1;
         if (from_v[arg_pos] <= 1) depth += 2;
         if (from_v[arg_pos] == var) ++var_count_in_body;
@@ -38,7 +39,7 @@ response beta_reduce(const array_t from, array_t to, size_t* term_size) {
     size_t end_pos = arg_pos;
     size_t abs_count_in_arg = 0;
     depth = 1;
-    while (depth > 0 && end_pos < *term_size) {
+    while (depth > 0 && end_pos < from->size) {
         if (from_v[end_pos] == 2) depth += 1;
         if (from_v[end_pos] <= 1) depth += 2;
         if (from_v[end_pos] == 1) ++abs_count_in_arg;
@@ -46,10 +47,10 @@ response beta_reduce(const array_t from, array_t to, size_t* term_size) {
         ++end_pos;
     }
     size_t arg_size = end_pos - arg_pos;
-    size_t new_size = *term_size + (arg_size - 1) * (var_count_in_body - 1) - 4;
+    size_t new_size = from->size + (arg_size - 1) * (var_count_in_body - 1) - 4;
 
     // If expanded term wont fit in memory return
-    if (new_size > to.size)
+    if (new_size > to->capacity)
         return MemoryLow;
     
     // Start Beta reduction
@@ -62,7 +63,7 @@ response beta_reduce(const array_t from, array_t to, size_t* term_size) {
     // Preform simple beta reduction
     bool first = true;
     size_t alpha_pos;
-    num_t max_val = 2;
+    num_t max_val;
     size_t read_pos = app_pos + 3;
     for (; read_pos < arg_pos; ++read_pos) {
         if (from_v[read_pos] == 2) {
@@ -80,23 +81,15 @@ response beta_reduce(const array_t from, array_t to, size_t* term_size) {
         }
         // If second variable found, rename bound variables
         if (!first) {
-            for (size_t pos = 0; pos < *term_size; ++pos) {
-                if (from.values[pos] == 2) {
-                    ++pos;
-                    continue;
-                }
-                max_val = from.values[pos] > max_val ? from.values[pos] : max_val;
-            }
-            max_val += 1;
+            max_val = get_max(from) + 1;
             alpha_pos = write_pos - arg_size;
             // rename using alpha reduction. if fails for memory, fail
-            array_t argument = {arg_size, to.values + alpha_pos};
-            if (alpha_reduce(argument, arg_size, max_val) == MemoryUnallocated)
+            term_t argument = {arg_size, arg_size, SIZE_MAX, to->values + alpha_pos};
+            if (alpha_reduce(&argument, max_val) == MemoryUnallocated)
                 return MemoryUnallocated;
             // Check if there are enough free variable names
             //if (max_val - 1 + (var_count_in_body-1) * abs_count_in_arg < max_val)
             //    return 'V';
-            
             ++read_pos;
             break;
         }
@@ -122,10 +115,10 @@ response beta_reduce(const array_t from, array_t to, size_t* term_size) {
         }
     }
     // Finish copying rest of term
-    for (size_t pos = end_pos; pos < *term_size; ++pos) {
+    for (size_t pos = end_pos; pos < from->size; ++pos) {
         to_v[write_pos++] = from_v[pos];
     }
-    *term_size = new_size;
+    to->size = new_size;
     
     return Reduced;
 }
