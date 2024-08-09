@@ -74,7 +74,7 @@ void insertion_sort(term_t* term) {
     for (size_t i = 1; i < term->size; ++i) {
         num_t val = values[i];
         size_t j = i;
-        while (values[j-1] > val && j > 0) {
+        while (j > 0 && values[j-1] > val) {
             values[j] = values[j-1];
             --j;
         }

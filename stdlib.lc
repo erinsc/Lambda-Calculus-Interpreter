@@ -1,0 +1,34 @@
+#\a.a
+#= I
+#\ab.a
+#= K
+#\ab.b
+#= KI
+#\abc.ac(bc)
+#= S
+#\abc.a(bc)
+#= B
+#\abs.acb
+#= C
+
+\ab.a
+= TRUE
+\ab.b
+= FALSE
+
+\ab.b
+= ZERO
+\ab.a b
+= ONE
+\ab.a(ab)
+= TWO
+\ab.a(a(ab))
+= THREE
+\ab.a(a(a(ab)))
+= FOUR
+\abc.b(abc)
+= INC
+\ab.aINCb
+= ADD
+\ab.a(ADDb)ZERO
+= MULT

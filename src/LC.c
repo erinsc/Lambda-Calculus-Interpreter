@@ -104,7 +104,7 @@ response add_expression(map_t* map, const term_t* term, num_t id) {
 }
 
 void text_parse(const char input[], struct ProgramState* state) {
-    if (input[0] == '\n') {
+    if (input[0] == '\n' || input[0] == '#') {
         return;
     }
     if (input[0] == '=') {
@@ -160,9 +160,9 @@ void text_parse(const char input[], struct ProgramState* state) {
 
 // (\a.a (\d e.e (d (\l m.l) (\f.d (\n o.o) (\g h i.h (g h i)) f) (\j k.k)) (\p q.p (d (\r s.s) p q))) (\t.t (\u v.u v) (\w x.w x)) (\b c.b)) (\a1 b1.a1(a1(a1(a1 b1))))
 
-#define MEM_MIN 16
+#define MEM_MIN 1024
 
-int main() {
+int main(int argc, char *argv[]) {
     struct ProgramState state;
     term_t* map_n = malloc(MEM_MIN * sizeof(term_t));
     state.map = (map_t){MEM_MIN, 0, map_n};
@@ -175,6 +175,17 @@ int main() {
     
     char input[1024];
     
+    if (argc >= 2) {
+        FILE *file = fopen(argv[1], "r");
+        if (file == NULL) {
+            perror("Error opening file");
+            return EXIT_FAILURE;
+        }
+        while (fgets(input, sizeof(input), file)) {
+            text_parse(input, &state);
+        }
+        fclose(file);
+    }
     while (true) {
         printf("> ");
         
@@ -184,9 +195,7 @@ int main() {
         text_parse(input, &state);
     }
     //TODO: free expressions from map
-    free(map_n);
-    free(term_n);
-    free(acc_n);
+    printf("\n");
     
-    return 0;
+    return EXIT_SUCCESS;
 }
