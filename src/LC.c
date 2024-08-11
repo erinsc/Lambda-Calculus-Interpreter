@@ -5,36 +5,39 @@
 #include "parser.h"
 #include "reduction.h"
 
-struct ProgramState { // 128 bytes
+typedef struct { // 128 bytes
     map_t map;
     term_t term;
     term_t acc;
-
     Strategy strategy;
+    bool setup;
     bool print;
-};
+    bool delta;
+} ProgramState;
 
 // Perform successive beta and delta reductions until term is normalized
-response normalize(term_t* term, term_t* acc, map_t* expressions, bool print) {
+response normalize(ProgramState* state) {
     term_t swp;
     
     while (true) {
-        if (print)
-            lambda_print(term);
+        if (state->print) {
+            lambda_print(&state->term);
+            printf("\n");
+        }
         // Perform beta-reduction
-        switch (beta_reduce(term, acc)) {
+        switch (beta_reduce(&state->term, &state->acc)) {
             case Reduced: // If reduction occured, swap terms and repeat
-                swp = *term;
-                *term = *acc;
-                *acc = swp;
+                swp = state->term;
+                state->term = state->acc;
+                state->acc = swp;
                 continue;
             case MemoryLow: {
-                num_t* new_acc_n = realloc(acc->values, acc->capacity * 2 * sizeof(num_t));
+                num_t* new_acc_n = realloc(state->acc.values, state->acc.capacity * 2 * sizeof(num_t));
                 if (new_acc_n == NULL) {
                     return MemoryUnallocated;
                 }
-                acc->values = new_acc_n;
-                acc->capacity *= 2;
+                state->acc.values = new_acc_n;
+                state->acc.capacity *= 2;
                 continue;
             }
             case MemoryUnallocated:
@@ -42,20 +45,23 @@ response normalize(term_t* term, term_t* acc, map_t* expressions, bool print) {
             case Normal: // If term beta-normalized...
                 break;
         }
+        if (!state->delta)
+            break;
+        
         // Perform delta-reduction
-        switch (delta_reduce(term, acc, expressions)) {
+        switch (delta_reduce(&state->term, &state->acc, &state->map)) {
             case Reduced: // If reduction occured, go back to loop start
-                swp = *term;
-                *term = *acc;
-                *acc = swp;
+                swp = state->term;
+                state->term = state->acc;
+                state->acc = swp;
                 continue;
             case MemoryLow: {
-                num_t* new_acc_n = realloc(acc->values, acc->capacity * 2 * sizeof(num_t));
+                num_t* new_acc_n = realloc(state->acc.values, state->acc.capacity * 2 * sizeof(num_t));
                 if (new_acc_n == NULL) {
                     return MemoryUnallocated;
                 }
-                acc->values = new_acc_n;
-                acc->capacity *= 2;
+                state->acc.values = new_acc_n;
+                state->acc.capacity *= 2;
                 continue;
             }
             case MemoryUnallocated:
@@ -66,7 +72,7 @@ response normalize(term_t* term, term_t* acc, map_t* expressions, bool print) {
         break;
     }
     // Rename variables to minimize space
-    alpha_reduce(term, 3);
+    alpha_reduce(&state->term, 3);
     return Normal;
 }
 response add_expression(map_t* map, const term_t* term, num_t id) {
@@ -97,69 +103,88 @@ response add_expression(map_t* map, const term_t* term, num_t id) {
     return Reduced;
 }
 
-void text_parse(const char input[], struct ProgramState* state) {
+void text_parse(const char input[], ProgramState* state) {
     if (input[0] == '\n' || input[0] == '#') {
+        return;
+    }
+    if (input[0] == '-') {
+        size_t pos = 1;
+        char c = input[pos];
+        while ('a' <= c && c <= 'z') {
+            if (c == 'h') {
+                printf("\"> \" Indicates input prompt.\n");
+                printf("Type in \"-<char>\" to change settings depending on character:\n");
+                printf("  \"-d\" Toggles delta reduction, i.e. unpacking of expressions,\n");
+                printf("  \"-p\" Toggles printing of intermediate terms,\n");
+                printf("  \"-h\" Prints this text\n.");
+                printf("Typing \"= <chars>\" assigns last normalized term to given name.\n");
+                printf("  Name is limited to 6 chars, i.e \"FACTORIAL\" is interpreted as \"FACTOR\".\n");
+                printf("Otherwise input is interpreted as lambda term.\n");
+                printf("  Character \"\\\" is used instead of the lambda character.\n");
+                printf("  For a more complete explanation of how lambda terms work check out the Github.\n");
+                printf("Running the program as \"LC.c <filename>.lc\" Automatically runs lines in order.\n");
+                printf("  Lines may be commented out by typing \"#\" as the first character.\n");
+            }
+            if (c == 'd') 
+                state->delta = !state->delta;
+            if (c == 'p')
+                state->print = !state->print;
+            
+            c = input[++pos];
+        }
         return;
     }
     if (input[0] == '=') {
         num_t id = exp_parse(input + 1);
-        switch(add_expression(&state->map, &state->term, id)) {
-            case Normal:
-                printf("! Expression already defined\n");
-                break;
+        switch (add_expression(&state->map, &state->term, id)) {
             case MemoryUnallocated:
-                printf("! Memalloc error\n");
+                printf("Err: Memory allocation error\n");
+                return;
+            case Normal:
+                printf("Expression is already defined\n");
+                return;
+            case Reduced: {
+                num_t n[] = {2, id};
+                term_t exp = {2,2,id,n};
+                lambda_print(&exp);
+                printf(" = ");
+                lambda_print(&state->term);
+                printf("\n");
+                return;
+            }
             default:
-                break;
+                printf("Unhandled case\n");
+                return;
         }
-        return;
     }
     lambda_parse(input, &state->term);
     if (state->term.size == 0) {
         return;
     }
-    switch(normalize(&state->term, &state->acc, &state->map, false)) {
+    switch(normalize(state)) {
         case MemoryUnallocated:
-            printf("! Memalloc error\n");
-            break;
+            printf("Err: Memory allocation error\n");
+            return;
         case Normal:
-            lambda_print(&state->term);
-            break;
+            if (!state->setup) {
+                lambda_print(&state->term);
+                printf("\n");
+            }
+            return;
         default:
-            printf("Unexpected instruction\n");
+            break;
     }
+    printf("Unhandled case\n");
+    return;
 }
-
-// TRUE = \a b.a
-// FALSE = \a b.b
-
-// ZERO = \a b.b
-// ONE = \a b.a b
-// TWO = \a b.a(a b)
-// THREE = \a b.a(a(a b))
-// FOUR = \a b.a(a(a(a b)))
-// INC = \a b c.b(a b c)
-// ADD = \a b. a INC b
-// MULT = \a b. a (ADD b) ZERO
-
-// PAIR = \a b c.c a b
-// FST = \p.p TRUE
-// SND = \p.p FALSE
-
-// FACTX = \a. PAIR (MULT (FST a) (SND a)) (INC (SND a))
-// FACT = \a.FST (a FACTX (PAIR ONE ONE))
-
-// FACT = \a. (\p.p (\x y.x)) (a (\a1. (\a2 b2 c2.c2 a2 b2) ((\a3 b3. a3 ((\a4 b4. a4 (\a5 b5 c5.b5(a5 b5 c5)) b4) b3) (\a6 b6.b6)) ((\p7.p7 (\a8 b8.a8)) a1) ((\p9.p9 (\a10 b10.b10)) a1)) ((\a11 b11 c11.b11(a11 b11 c11)) ((\p12.p12 (\a13 b13.b13)) a1))) ((\a14 b14 c14.c14 a14 b14) (\a15 b15.a15 b15) (\a16 b16.a16 b16)))
-// FACT = \a.a (\b c.c (b (\j k.j) (\d.b (\l m.m) (\e f g.f (e f g)) d) (\h i.i)) (\n o.n (b (\p q.q) n o))) (\r.r (\s t.s t) (\u v.u v)) 
-
-// (\a.a (\d e.e (d (\l m.l) (\f.d (\n o.o) (\g h i.h (g h i)) f) (\j k.k)) (\p q.p (d (\r s.s) p q))) (\t.t (\u v.u v) (\w x.w x)) (\b c.b)) (\a1 b1.a1(a1(a1(a1 b1))))
 
 #define MEM_MIN 1024
 
 int main(int argc, char *argv[]) {
-    struct ProgramState state;
+    ProgramState state;
     state.print = false;
-    
+    state.delta = false;
+    state.setup = true;
     
     term_t* map_n = malloc(MEM_MIN * sizeof(term_t));
     state.map = (map_t){MEM_MIN, 0, map_n};
@@ -182,7 +207,16 @@ int main(int argc, char *argv[]) {
             text_parse(input, &state);
         }
         fclose(file);
+        printf("\n");
     }
+    
+    state.print = true;
+    state.delta = true;
+    state.setup = false;
+    
+    printf("Lambda Calculus Interpreter 1.0 - erinsc 2024\n");
+    printf("Use -h for help\n");
+    
     while (true) {
         printf("> ");
         
@@ -190,9 +224,9 @@ int main(int argc, char *argv[]) {
             break;
         }
         text_parse(input, &state);
+        printf("\n");
     }
-    //TODO: free expressions from map
-    printf("\n");
+    printf("\nCya later!\n");
     
     return EXIT_SUCCESS;
 }

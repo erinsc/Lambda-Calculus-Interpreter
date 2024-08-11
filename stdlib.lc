@@ -1,20 +1,15 @@
-#\a.a
-#= I
-#\ab.a
-#= K
-#\ab.b
-#= KI
-#\abc.ac(bc)
-#= S
-#\abc.a(bc)
-#= B
-#\abs.acb
-#= C
-
 \ab.a
 = TRUE
 \ab.b
 = FALSE
+\a.a FALSE TRUE
+= NOT
+\ab.aba
+= AND
+\ab.aab
+= OR
+\ab.AND (OR a b) (NOT (AND a b))
+= XOR
 
 \ab.b
 = ZERO
@@ -28,7 +23,19 @@
 = FOUR
 \abc.b(abc)
 = INC
-\ab.aINCb
+\ab.a INC b
 = ADD
-\ab.a(ADDb)ZERO
+\ab.a (ADD b) ZERO
 = MULT
+
+\abc.cab
+= PAIR
+\p.p TRUE
+= FST
+\p.p FALSE
+= SND
+
+\a.PAIR (MULT (FST a) (SND a)) (INC (SND a))
+= FACTX
+\a.FST (a FACTX (PAIR ONE ONE))
+= FACT

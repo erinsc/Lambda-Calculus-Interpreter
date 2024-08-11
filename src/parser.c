@@ -8,7 +8,6 @@ size_t _lambda_print(const term_t* term, size_t index) {
         if (values[index+1] == 1) printf("(");
         size_t second_index = _lambda_print(term, index+1);
         if (values[index+1] == 1) printf(")");
-        printf(" ");
         if (values[second_index] <= 1) printf("(");
         size_t third_index = _lambda_print(term, second_index);
         if (values[second_index] <= 1) printf(")");
@@ -18,7 +17,6 @@ size_t _lambda_print(const term_t* term, size_t index) {
         printf("\\");
         _lambda_print(term, index+1);
         while (values[index+2] == 1) {
-            printf(" ");
             _lambda_print(term, index+3);
             index += 2;
         }
@@ -26,6 +24,7 @@ size_t _lambda_print(const term_t* term, size_t index) {
         return _lambda_print(term, index+2);
     }
     if (values[index] == 2) {
+        printf(" ");
         num_t acc = values[index+1] - 3;
         while (acc > 0) {
             printf("%c", (char)((acc -1) % 26) + 'A');
@@ -41,11 +40,10 @@ size_t _lambda_print(const term_t* term, size_t index) {
 }
 void lambda_print(const term_t* term) {
     if (term->size == 0) {
-        printf("\" \"\n");
+        printf("\" \"");
         return;
     }
     _lambda_print(term, 0);
-    printf("\n");
 }
 void _parse_whitespace(const char text[], size_t* read_pos) {
     char c = text[*read_pos];
