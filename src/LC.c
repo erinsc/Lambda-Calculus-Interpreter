@@ -5,6 +5,8 @@
 #include "parser.h"
 #include "reduction.h"
 
+#define MEM_MIN 256
+
 typedef struct { // 128 bytes
     map_t map;
     term_t term;
@@ -102,7 +104,7 @@ response add_expression(map_t* map, const term_t* term, num_t id) {
     
     return Reduced;
 }
-
+void file_parse(const char[], ProgramState*);
 void text_parse(const char input[], ProgramState* state) {
     if (input[0] == '\n' || input[0] == '#') {
         return;
@@ -113,14 +115,16 @@ void text_parse(const char input[], ProgramState* state) {
         while ('a' <= c && c <= 'z') {
             if (c == 'h') {
                 printf("\"> \" Indicates input prompt.\n");
-                printf("Type in \"-<char>\" to change settings depending on character:\n");
+                printf("Type in \"-\" followed by a character/characters to change settings:\n");
                 printf("  \"-d\" Toggles delta reduction, i.e. unpacking of expressions,\n");
                 printf("  \"-p\" Toggles printing of intermediate terms,\n");
-                printf("  \"-h\" Prints this text\n.");
-                printf("Typing \"= <chars>\" assigns last normalized term to given name.\n");
+                printf("  \"-h\" Prints this text,\n");
+                printf("  \"-f\" Followed by a filename reads the file and interprets it.\n");
+                printf("Type \"=\" to assign last normalized term to given name.\n");
+                printf("  Example: \"= ADD\" Assigns last term to name ADD.\n");
                 printf("  Name is limited to 6 chars, i.e \"FACTORIAL\" is interpreted as \"FACTOR\".\n");
                 printf("Otherwise input is interpreted as lambda term.\n");
-                printf("  Character \"\\\" is used instead of the lambda character.\n");
+                printf("  Character \"\\\" is used instead of the lambda character for input and output.\n");
                 printf("  For a more complete explanation of how lambda terms work check out the Github.\n");
                 printf("Running the program as \"LC.c <filename>.lc\" Automatically runs lines in order.\n");
                 printf("  Lines may be commented out by typing \"#\" as the first character.\n");
@@ -129,23 +133,36 @@ void text_parse(const char input[], ProgramState* state) {
                 state->delta = !state->delta;
             if (c == 'p')
                 state->print = !state->print;
-            
+            if (c == 'f') {
+                char filename[MEM_MIN];
+                size_t f_pos = 0;
+                c = input[++pos];
+                while (c == ' ') c = input[++pos];
+                while (c != ' ' && c != '\n' && c != '\t' && c != EOF) {
+                    filename[f_pos++] = c;
+                    c = input[++pos];
+                }
+                filename[f_pos] = '\0';
+                file_parse(filename, state);
+            }
             c = input[++pos];
         }
         return;
     }
     if (input[0] == '=') {
         num_t id = exp_parse(input + 1);
+        num_t n[] = {2, id};
+        term_t exp = {2,2,id,n};
         switch (add_expression(&state->map, &state->term, id)) {
             case MemoryUnallocated:
-                printf("Err: Memory allocation error\n");
+                printf("! Memory allocation error\n");
                 return;
             case Normal:
-                printf("Expression is already defined\n");
+                printf("! Expression is already defined: ");
+                lambda_print(&exp);
+                printf("\n");
                 return;
             case Reduced: {
-                num_t n[] = {2, id};
-                term_t exp = {2,2,id,n};
                 lambda_print(&exp);
                 printf(" = ");
                 lambda_print(&state->term);
@@ -163,7 +180,7 @@ void text_parse(const char input[], ProgramState* state) {
     }
     switch(normalize(state)) {
         case MemoryUnallocated:
-            printf("Err: Memory allocation error\n");
+            printf("! Memory allocation error\n");
             return;
         case Normal:
             if (!state->setup) {
@@ -177,8 +194,24 @@ void text_parse(const char input[], ProgramState* state) {
     printf("Unhandled case\n");
     return;
 }
-
-#define MEM_MIN 1024
+void file_parse(const char filename[], ProgramState* state) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        fprintf(stderr, "! Error opening file: %s\n", filename);
+        return;
+    }
+    char input[MEM_MIN];
+    state->print = false;
+    state->delta = false;
+    state->setup = true;
+    
+    while (fgets(input, sizeof(input), file)) {
+        text_parse(input, state);
+    }
+    fclose(file);
+    state->delta = true;
+    state->setup = false;
+}
 
 int main(int argc, char *argv[]) {
     ProgramState state;
@@ -195,27 +228,17 @@ int main(int argc, char *argv[]) {
     num_t* acc_n = calloc(MEM_MIN, sizeof(num_t));
     state.acc = (term_t){MEM_MIN, 0, SIZE_MAX, acc_n};
     
-    char input[1024];
+    char input[MEM_MIN];
     
     if (argc >= 2) {
-        FILE *file = fopen(argv[1], "r");
-        if (file == NULL) {
-            perror("Error opening file");
-            return EXIT_FAILURE;
+        for (int i = 1; i < argc; ++i) {
+            file_parse(argv[i], &state);
         }
-        while (fgets(input, sizeof(input), file)) {
-            text_parse(input, &state);
-        }
-        fclose(file);
         printf("\n");
     }
-    
-    state.print = true;
-    state.delta = true;
-    state.setup = false;
-    
+
     printf("Lambda Calculus Interpreter 1.0 - erinsc 2024\n");
-    printf("Use -h for help\n");
+    printf("Type -h for help\n");
     
     while (true) {
         printf("> ");
@@ -226,7 +249,7 @@ int main(int argc, char *argv[]) {
         text_parse(input, &state);
         printf("\n");
     }
-    printf("\nCya later!\n");
+    printf("\n");
     
     return EXIT_SUCCESS;
 }

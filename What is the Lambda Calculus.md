@@ -1,48 +1,56 @@
 ## What is the Lambda Calculus?
-It's like a programming language but there's only 3 things: abstractions, applications, and variables. You can build a binary tree out of these, a 'Lambda term'; applications branch into two other terms, left is called its 'function', the right its 'argument'. abstractions branch into a variable, the 'bound variable', and a term called its 'body'. variables are leaves of the tree.
+Great question! Imagine it's the 1930's and you're a logician trying to figure out what math is. As in, how much do you need to be able to do all of math. Turns out, not much!
 
-There are only two operations you can do on the terms, and only the second one actually does something. Alpha reduction renames variables to avoid variable conflict: we don't care about the names themselves, just the relation between them and their bound variable. To avoid confusion we change variable names so every variable is bound only once.
+The Lambda calculus has only 5 things in it, 3construction and 2 reduction rules. Let's go over the constructions first, we use them to construct lambda terms:
+1. Variables. those can be anything really, numbers, characters, the value itself doesn't really matter. these are our base terms.
+2. Abstractions. They're like the functions in programming, they have one input, represented by a variable, and a body which is some lambda term.
+3. Applications. They're made up of two terms, a function and an argument.
 
-Beta reduction is the main workhorse here. It is only usable on an application whose function is an abstraction: We find all variables with the same name as the bound variable of the function, and replace them with copies of the argument (renaming them with alpha reduction to avoid conflicts).
+Let's look at some examples:
+- `x`,`y`,`z` are simple Variables.
+- `\x.y` is an Abstraction with `x` as its input and `y` as its body.
+- `x y` is an Application where `x` is the function and `y` is the argument.
+- `(\a.(b c)) d` this one's a bit more complicated, it's an application with an abstraction as its function, and the abstraction has an application as its body.
 
-- Variables can look like anything: `a`, `x`, `hello`, `36`.
-- Abstractions look like this: `λ<bound variable>.<body>`, for example `λx.x`, `λx.y`.
-  - If the body is an abstraction too you can smush them together for better readability: `λx.λy.x` = `λx y.x`.
-  - If you can't type `λ` you can use `\`.
-- Applications look like this: `<function> <argument>`, using brackets to avoid ambiguity. `(a b) c` vs `a (b c)`.
-  - You can imply brackets from the left, again to make it easier to read: `a b c` = `(a b) c`.
+Cool so now we can build lambda terms, let's look at a way we can reduce them.
 
-## Wait so what is all this for?
-With enough effort you can represent any calculation you want with just these terms. You can think of them like the building blocks of math and programming, which is pretty fun!
+1. Beta reduction. It might feel weird that we're starting with the second operation but it's actually the more important one. It works basically like normal function application: We find an abstraction, insert its argument, and replace all instances of the bound variable with copies of it.
 
-Let's start with some building blocks first:
+Ok maybe that wasn't super clear. Let's look at an example:
 
-- `λx.x`, I or Ibis, takes an argument and returns it, simple as.
-  - `(λx.x) hello` -> `hello`
-  - `(λx.x) (λy.y) world` ->
-    `(λy.y) world` ->
-    `world`
-- `λx y.x`, K or Kestrel. takes two arguments and returns the first.
-  - `(λx y.x) hello world` ->
-    `(λy.hello) world` ->
-    `hello`
-- `λx y.y`, KI or Kite. takes two arguments and returns the second.
-  - It might not be obvious at first but as the name implies, `KI` = `λx y.x`:
-  - `(λx y.x) (λz.z)` ->
-    `λy.(λz.z)` = `λy z.z`. Again the variable names dont matter just their relative positions to each other and their bound variable.
-- `λx y z.x(y z)`, B or Bluebird, looks kinda complicated since it actually does something but it's just function composition. it takes two terms and aplies them one after another to an argument.
-  - `(λx y z.x(y z)) (λx y.x) (λx.x) hatsune miku` ->
-    `(λy z.(λx w.x)(y z)) (λx.x) hatsune miku` ->
-    `(λy z w.(y z)) (λx.x) hatsune miku` ->
-    `(λz w.((λx.x) z)) hatsune miku` ->
-    `(λz w.z) hatsune miku` ->
-    `(λw.hatsune) miku` ->
-    `hatsune`.
-- `λx y z.xzy`, C or Cardinal, reverses the first two arguments for a function.
-- `λx y z.xz(zy)`, S or Starling, it's like C and B at the same time.
+Let's take a normal math function like `f(x) = x + 2`. `f` is the abstraction, `x` is its bound variable, and `x + 2` is its body. We can now calculate something like `f(5)`. Here, `5` is the argument for `f`. To calculate it we take the `5`, and replace all `x`'s inside `f`'s body with `5`, and we get `5 + 2`.
 
-## I mean cool but you said there'd be math, this isn't math
+Beta reduction works the same. Take the lambda term `(\x.(x y)) z`. `z` is the argument, `\x.(x y)` the abstraction, `x` its bound variable. To beta reduce it we replace all `x`'s inside the body with `z`'s, and get `z y`. Easy!
 
-Oh, right sorry. In LC it's often better to thing about not what something *is*, but what it *does*. Let's do booleans first: What do you use them often for? If-else clauses. If something is true, do A, otherwise B. We can do this by making a term that takes A and B, and if it's a 'true' it returns the first, if it's a 'false' it returns the second.
+A more complicated example, how would you reduce this term?
 
-But hold on! We already have those, it's the Kestrel and Kite!
+`((\x.(\y.(y x))) h) (\z.z)`
+
+Remember we have to find an application which has an abstraction as its function. we can't reduce the topmost application `((\x.(\y.(y x))) h) (\z.z)` because its function is also an application `(\x.(\y.(y x))) h`, but we can reduce that application! its body is `(\y.(y x))` and we replace all `x`'s with `h`, and get back `(\y.(y h))`. The entire term is now `(\y.(y h)) (\z.z)`.
+
+In the second step we replace all `y`'s with `(\z.z)`, and out term is now `(\z.z) h`.
+
+In the last step we replace all `z`'s with `h`'s, and get `h`.
+
+2. Alpha reduction. It's not really an operation, more a guideline. You might've noticed we don't really care what the variable names are, we just care which variables inside a body are bound and which aren't, so we can rename them if we want, or need to.
+
+Take the term `(\x.(x x)) (\y.y)`. If we beta reduce it like normal, we'd get two different abstractions both with `y` as their bound variable, which could get confusing. To avoid it we can just rename one of them to `a`'s, and get `(\y.y) (\a.a)`.
+
+Now a small detail, the way we've been writing the terms is a bit anoying, so we'll simplyfy it a bit, get rid of the brackets:
+
+- We'll write `(a b) c` as just `a b c`, assume brackets from the left.
+- `(\a.(b c))` as `(\a.b c)`, and
+- `(\a.(\b.c))` as `(\a b.c)`. This last one is pretty interesting because its basically a 2-input abstraction, which we didn't have before.
+
+## I mean, that's cool but how is this math?
+ Oh, right! You might've noticed that there aren't any numbers, or even values. There's no way to store data. That's okay tho, we can simulate them using functions:
+
+ Let's start with bools, true and false. What do we use them for normally? for if-else statements of course! We have two possible values we want to choose between. if we have a true, we want to get the first of the two, if we have a false we want the second. so we want an abstraction that takes two things and returns the first/second. We can define true as `\x y.x` and false as `\x y.y`.
+
+ Now, take an abstraction like `\b.b X Y`. If we input true we get `X`, and if we input false we get `Y`. we've built an if-statement. Now imagine if `X` was false and `Y` true. We've just built a not-gate!
+
+ It's not too hard to imagine how an and-gate will look like, it just takes two booleans instead of one. If the first is false, we return false, otherwise, if the second is true we return true, if its false we return false. I'll write `False` and `True` instead of the actual lambda terms to make it easier to read:
+
+ `\a b.a (b True False) False`
+
+ Now, you might've noticed that the second part was redundant, instead of using the second argument to decide we can just return it, so we can simplify our term to  `\a b.a b False`. But! if `a` is false, then there's no need to return a brand new false, we can just return `a`, so we can simplify our term to `\a b.a b a`, how cool is that?!
