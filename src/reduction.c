@@ -7,6 +7,10 @@ response alpha_reduce(term_t* term, size_t max_val) {
     // Count abs occurences
     size_t abs_count_in_side = 0;
     for (size_t pos = 0; pos < term->size; ++pos) {
+        if (term->values[pos] == 2) {
+            ++pos;
+            continue;
+        }
         if (term->values[pos] == 1)
             ++abs_count_in_side;
     }
@@ -19,6 +23,10 @@ response alpha_reduce(term_t* term, size_t max_val) {
     // Generate chart
     size_t repl_pos = 0;
     for (size_t pos = 0; pos < term->size; ++pos) {
+        if (term->values[pos] == 2) {
+            ++pos;
+            continue;
+        }
         if (term->values[pos] == 1)
             repl_chart.values[repl_pos++] = term->values[++pos];
     }
@@ -137,6 +145,11 @@ response beta_reduce(const term_t* from, term_t* to) {
                 continue;
             }
             for (size_t pos = alpha_pos; pos < alpha_pos + arg_size; ++pos) {
+                if (to_v[pos] == 2) {
+                    to_v[write_pos++] = to_v[pos++];
+                    to_v[write_pos++] = to_v[pos];
+                    continue;
+                }
                 num_t offset = to_v[pos] >= max_val ? abs_count_in_arg : 0;
                 to_v[write_pos++] = to_v[pos] + offset;
             }
